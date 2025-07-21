@@ -6,7 +6,7 @@ interface RoomAttributes {
   name: string;
   startTime: string;
   endTime: string;
-  timeBlock: number;
+  time_block: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -18,7 +18,7 @@ class Room
   public name!: string;
   public startTime!: string;
   public endTime!: string;
-  public timeBlock!: number;
+  public time_block!: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -44,7 +44,7 @@ Room.init(
       allowNull: false,
       field: "end_time",
     },
-    timeBlock: {
+    time_block: {
       type: DataTypes.INTEGER,
       allowNull: false,
       field: "time_block",

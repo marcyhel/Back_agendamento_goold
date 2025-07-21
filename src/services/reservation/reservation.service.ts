@@ -12,14 +12,14 @@ const getAvailableSlots = (
   room: RoomInterface,
   reservations: ReservationInterface[]
 ): string[] => {
-  const { startTime, endTime, timeBlock } = room;
+  const { startTime, endTime, time_block } = room;
 
   const [h0, m0] = startTime.split(":").map(Number);
   const [h1, m1] = endTime.split(":").map(Number);
   const start = h0 * 60 + m0;
   const end = h1 * 60 + m1;
 
-  const totalBlocks = Math.floor((end - start) / timeBlock);
+  const totalBlocks = Math.floor((end - start) / time_block);
   const occupied = Array(totalBlocks).fill(false);
 
   const confirmed = reservations.filter((b) => b.status === "confirmed");
@@ -27,7 +27,7 @@ const getAvailableSlots = (
   confirmed.forEach((b) => {
     const [bh, bm] = b.time.split(":").map(Number);
     const bStart = bh * 60 + bm;
-    const blockIndex = Math.floor((bStart - start) / timeBlock);
+    const blockIndex = Math.floor((bStart - start) / time_block);
     if (blockIndex >= 0 && blockIndex < totalBlocks) {
       occupied[blockIndex] = true;
     }
@@ -36,7 +36,7 @@ const getAvailableSlots = (
   const available: string[] = [];
   for (let i = 0; i < totalBlocks; i++) {
     if (!occupied[i]) {
-      const t = start + i * timeBlock;
+      const t = start + i * time_block;
       const hh = String(Math.floor(t / 60)).padStart(2, "0");
       const mm = String(t % 60).padStart(2, "0");
       available.push(`${hh}:${mm}`);
@@ -60,7 +60,7 @@ const isSlotAvailable = (
     return false;
   }
 
-  const { startTime, endTime, timeBlock } = room;
+  const { startTime, endTime, time_block } = room;
 
   const [h0, m0] = startTime.split(":").map(Number);
   const [h1, m1] = endTime.split(":").map(Number);
@@ -69,14 +69,14 @@ const isSlotAvailable = (
 
   const [dh, dm] = desiredTime.split(":").map(Number);
   const desiredStart = dh * 60 + dm;
-  const desiredEnd = desiredStart + timeBlock;
+  const desiredEnd = desiredStart + time_block;
 
   if (desiredStart < startMinutes || desiredEnd > endMinutes) {
     return false;
   }
 
-  const blockIndex = Math.floor((desiredStart - startMinutes) / timeBlock);
-  const expectedSlotStart = startMinutes + blockIndex * timeBlock;
+  const blockIndex = Math.floor((desiredStart - startMinutes) / time_block);
+  const expectedSlotStart = startMinutes + blockIndex * time_block;
 
   if (desiredStart !== expectedSlotStart) {
     return false;
@@ -87,7 +87,7 @@ const isSlotAvailable = (
   const hasOverlap = confirmed.some((b) => {
     const [bh, bm] = b.time.split(":").map(Number);
     const bStart = bh * 60 + bm;
-    const bEnd = bStart + timeBlock;
+    const bEnd = bStart + time_block;
     return desiredStart < bEnd && bStart < desiredEnd;
   });
 

@@ -3,7 +3,7 @@ export interface RoomInterface {
   name: string;
   startTime: string;
   endTime: string;
-  timeBlock: number;
+  time_block: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
