@@ -46,6 +46,7 @@ export const updateUserProfile = async (userId: string, userData: EditUser) => {
     `User ${updated.user.email} updated profile successfully`
   );
 
+
   return updated;
 };
 
@@ -79,3 +80,4 @@ export const fetchUserLogs = async (
 
   return logRepo.getLogsByUserIdWithPagination(userId, pagination, filters);
 };
+

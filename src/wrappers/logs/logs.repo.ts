@@ -7,6 +7,8 @@ import {
   createPaginationResult,
   PaginationResult,
 } from "../../utils/pagination";
+import { getUtcRangeFromBrDate } from "../../utils/timezone";
+import LogService from "../../services/log/log.service";
 
 const logRepo = {
   createLog: async (
@@ -124,14 +126,13 @@ const logRepo = {
     }
 
     if (date) {
-      const targetDate = new Date(date);
-      const nextDay = new Date(targetDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-
+      const { start, end } = getUtcRangeFromBrDate(date);
       whereClause.createdAt = {
-        [Op.gte]: targetDate,
-        [Op.lt]: nextDay,
+        [Op.gte]: start,
+        [Op.lt]: end,
       };
+
+
     }
 
     const { count, rows } = await Log.findAndCountAll({
@@ -141,6 +142,14 @@ const logRepo = {
       limit,
       offset,
     });
+
+    await LogService.registerActivity(
+      userId,
+      "account",
+      "Visualização de Logs",
+      `Consulta todos os logs`
+    );
+
 
     return createPaginationResult(rows, count, page, limit);
   },

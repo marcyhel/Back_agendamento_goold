@@ -22,7 +22,7 @@ export const fetchAllReservations = async (
   try {
     const pagination = getPaginationParams(req.query);
     const filters = getFilterParams(req.query);
-    const data = await getAllReservationsService(pagination, filters);
+    const data = await getAllReservationsService(pagination, filters, req.context?.userId);
     res.status(200).json(data);
   } catch (err) {
     next(err);
@@ -37,7 +37,7 @@ export const fetchAvailableSlotsByRoom = async (
   try {
     const { id: roomId } = req.params;
     const { date } = req.body;
-    const slots = await getFreeReservationByRoomIdandDateService(roomId, date);
+    const slots = await getFreeReservationByRoomIdandDateService(roomId, date, req.context?.userId);
     res.status(200).json(slots);
   } catch (err) {
     next(err);
@@ -52,7 +52,7 @@ export const fetchReservationsByRoomAndDate = async (
   try {
     const { roomId } = req.params;
     const { date } = req.body;
-    const reservations = await getReservationByRoomIdAndDateService(roomId, date);
+    const reservations = await getReservationByRoomIdAndDateService(roomId, date, req.context?.userId);
     res.status(200).json(reservations);
   } catch (err) {
     next(err);

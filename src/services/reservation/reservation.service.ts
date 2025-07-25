@@ -7,6 +7,8 @@ import { createReservationValidator } from "../../wrappers/reservation/reservati
 import userRepo from "../../wrappers/user/user.repo";
 import LogService from "../log/log.service";
 import { PaginationParams, FilterParams } from "../../utils/pagination";
+import { toZonedTime } from "date-fns-tz";
+
 
 const getAvailableSlots = (
   room: RoomInterface,
@@ -96,12 +98,21 @@ const isSlotAvailable = (
 
 export const getAllReservationsService = async (
   paginationParams: PaginationParams,
-  filterParams: FilterParams
+  filterParams: FilterParams,
+  userId: string
 ) => {
   try {
     const reservations = await reservationRepo.getAllReservationsWithPagination(
       paginationParams,
       filterParams
+    );
+
+    LogService.registerActivity(
+      userId,
+      "reservation",
+      "Visualização de reservas",
+      `Consulta todas as reservas com paginação e filtros aplicados`,
+      undefined
     );
     return reservations;
   } catch (error) {
@@ -111,7 +122,8 @@ export const getAllReservationsService = async (
 
 export const getFreeReservationByRoomIdandDateService = async (
   id: string,
-  date: string
+  date: string,
+  userId: string
 ) => {
   try {
     if (!id) {
@@ -125,6 +137,14 @@ export const getFreeReservationByRoomIdandDateService = async (
 
     const reservations = await reservationRepo.findReservationsByRoomIdAndDate(id, date);
     const availableSlots = getAvailableSlots(room, reservations);
+
+    LogService.registerActivity(
+      userId,
+      "reservation",
+      "Visualização de reservas",
+      `Consulta reservas da sala ${room.id} para a data ${date}`,
+      undefined
+    );
     return { availableSlots };
   } catch (error) {
     if (error instanceof CustomError) {
@@ -136,7 +156,8 @@ export const getFreeReservationByRoomIdandDateService = async (
 
 export const getReservationByRoomIdAndDateService = async (
   roomId: string,
-  date: string
+  date: string,
+  userId: string
 ) => {
   try {
     if (!roomId || !date) {
@@ -145,6 +166,13 @@ export const getReservationByRoomIdAndDateService = async (
     const reservations = await reservationRepo.findReservationsByRoomIdAndDate(
       roomId,
       date
+    );
+    LogService.registerActivity(
+      userId,
+      "reservation",
+      "Visualização de reservas por sala e data",
+      `Consulta reservas da sala ${roomId} para a data ${date}`,
+      undefined
     );
     return reservations;
   } catch (error) {
@@ -169,12 +197,18 @@ export const getReservationsByUserIdService = async (
       paginationParams,
       filterParams
     );
+    LogService.registerActivity(
+      userId,
+      "reservation",
+      "Visualização de reservas do usuário",
+      `Usuário ${userId} consultou suas reservas`,
+      undefined
+    );
     return reservations;
   } catch (error) {
     throw new CustomError("Failed to retrieve user reservations", 500);
   }
 };
-
 export const createReservationService = async (
   reservationData: ReservationInterface
 ): Promise<ReservationInterface> => {
@@ -185,48 +219,79 @@ export const createReservationService = async (
     }
 
     if (!isValidTimeFormat(reservationData.time)) {
-      throw new CustomError("Invalid time format. Use HH:MM format", 400);
+      throw new CustomError("Formato de horário inválido. Use HH:MM", 400);
+    }
+
+    // ⏰ Verificar se é o dia atual e se o horário já passou (UTC-3)
+    const today = new Date();
+    const reservationDateStr = reservationData.date; // yyyy-mm-dd
+    const reservationTimeStr = reservationData.time; // HH:mm
+
+    const [hours, minutes] = reservationTimeStr.split(":").map(Number);
+
+    // Combina data e hora como string local
+    const localDateTime = new Date(`${reservationDateStr}T${reservationTimeStr}:00-03:00`);
+
+    const utcNow = new Date(); // UTC do back
+    const nowInUTC3 = toZonedTime(utcNow, "America/Sao_Paulo");
+
+    const isSameDay =
+      nowInUTC3.getFullYear() === localDateTime.getFullYear() &&
+      nowInUTC3.getMonth() === localDateTime.getMonth() &&
+      nowInUTC3.getDate() === localDateTime.getDate();
+
+    if (isSameDay && localDateTime < nowInUTC3) {
+      throw new CustomError(
+        "Não é possível agendar um horário que já passou hoje.",
+        400
+      );
     }
 
     const room = await roomRepo.findRoomById(reservationData.roomId);
-    if (!room) {
-      throw new CustomError("Room not found", 404);
-    }
+    if (!room) throw new CustomError("Sala não encontrada", 404);
 
     const user = await userRepo.findUserById(reservationData.userId);
-    if (!user) {
-      throw new CustomError("User not found", 404);
-    }
+    if (!user) throw new CustomError("Usuário não encontrado", 404);
+
     const date = reservationData.date;
-    const roomId = reservationData.roomId;
     const reservations = await reservationRepo.findReservationsByRoomIdAndDate(
-      roomId,
+      reservationData.roomId,
       date
     );
+
     if (!isSlotAvailable(room, reservations, reservationData.time)) {
       throw new CustomError(
-        "Requested time slot is not available or invalid",
+        "Esse horário não está disponível para essa sala",
         409
       );
     }
+
     reservationData.status = "pending";
     const newReservation = await reservationRepo.createReservation(reservationData);
+
     LogService.registerActivity(
       user.id,
       "reservation",
       "Criação de agendamento",
-      `Reservation created for room ${room.name} on ${date} at ${reservationData.time}`,
-      undefined
+      `Reserva criada para a sala ${room.name} em ${date} às ${reservationData.time}`
     );
+
     return newReservation;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.parent?.code === "ER_DUP_ENTRY") {
+      throw new CustomError(
+        "Já existe uma reserva para esse horário nesta sala",
+        409
+      );
+    }
+
     if (error instanceof CustomError) {
       throw error;
     }
-    throw new CustomError("Failed to create reservation", 500);
+
+    throw new CustomError("Erro ao criar reserva", 500);
   }
 };
-
 export const cancellationReservationService = async (
   reservationId: string,
   userId: string

@@ -11,6 +11,7 @@ import {
   createPaginationResult,
   PaginationResult,
 } from "../../utils/pagination";
+import { getUtcRangeFromBrDate } from "../../utils/timezone";
 
 const userRepo = {
   getAllUsers: async (): Promise<UserAddress[]> => {
@@ -56,13 +57,10 @@ const userRepo = {
     }
 
     if (date) {
-      const targetDate = new Date(date);
-      const nextDay = new Date(targetDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-
+      const { start, end } = getUtcRangeFromBrDate(date);
       whereClause.createdAt = {
-        [Op.gte]: targetDate,
-        [Op.lt]: nextDay,
+        [Op.gte]: start,
+        [Op.lt]: end,
       };
     }
 

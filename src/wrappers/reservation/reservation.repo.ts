@@ -7,6 +7,7 @@ import {
   createPaginationResult,
   PaginationResult,
 } from "../../utils/pagination";
+import LogService from "../../services/log/log.service";
 
 const reservationRepo = {
   getAllReservations: async (): Promise<Reservation[]> => {
@@ -200,6 +201,14 @@ const reservationRepo = {
       subQuery: false,
       logging: console.log,
     });
+
+    await LogService.registerActivity(
+      userId,
+      "account",
+      "Visualização de reservas por sala e data",
+      `Consulta todas as reservas`
+    );
+
 
     return createPaginationResult(rows, count, page, limit);
   },
